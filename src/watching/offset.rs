@@ -48,13 +48,15 @@ pub fn get_offset_by_key(key: &String) -> usize {
     offset
 }
 
-pub fn set_offset(key: &String, offset: usize) {
+pub fn set_offset(key: &String, offset: usize, marge: bool) {
     let mut file_offset = FILE_OFFSET.lock().unwrap();
-    let now_offset = file_offset.get(key.as_str());
-    if now_offset.is_some() {
-        let now_offset = now_offset.unwrap();
-        if offset <= *now_offset {
-            return;
+    if marge {
+        let now_offset = file_offset.get(key.as_str());
+        if now_offset.is_some() {
+            let now_offset = now_offset.unwrap();
+            if offset <= *now_offset {
+                return;
+            }
         }
     }
     file_offset.insert(key.to_string(), offset);
