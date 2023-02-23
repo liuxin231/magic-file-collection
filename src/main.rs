@@ -33,15 +33,16 @@ async fn main() {
         tracing::error!("watching path list is empty.");
         return;
     }
-    tracing::info!("watching path list: {:?}", path);
+    tracing::info!("watching path list: {:?}", &path);
     tokio::spawn(flush(settings.clone()));
-
-    if let Err(error) = async_watch(path).await {
-        tracing::error!("watching path error: {}", error.to_string());
+    let (tx, mut rx) = tokio::sync::mpsc::channel(10);
+    let path = path.to_string();
+    tokio::spawn(async move {
+        if let Err(error) = async_watch(path, tx).await {
+            tracing::error!("watching path error: {}", error.to_string());
+        }
+    });
+    while let Some(message) = rx.recv().await {
+        tracing::info!("{}", message);
     }
-    // futures::executor::block_on(async {
-    //     if let Err(error) = async_watch(path).await {
-    //         tracing::error!("watching path error: {}", error.to_string());
-    //     }
-    // });
 }
