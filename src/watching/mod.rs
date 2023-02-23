@@ -1,7 +1,7 @@
 use crate::watching::offset::{get_offset_by_key, set_offset};
 use futures::channel::mpsc::{channel, Receiver};
 use futures::{SinkExt, StreamExt};
-use notify::event::{CreateKind, ModifyKind, RemoveKind};
+use notify::event::ModifyKind;
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::io::BufRead;
 use std::os::unix::fs::FileExt;
