@@ -1,0 +1,7 @@
+[log]
+directory = "./log"
+file_name_prefix = "service.log"
+[notify]
+watching_path = "./data/test"
+flush_timing = 3
+offset_file = "./data/offset"
