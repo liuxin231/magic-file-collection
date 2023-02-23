@@ -1,7 +1,7 @@
 use crate::watching::offset::{get_offset_by_key, set_offset};
 use futures::channel::mpsc::{channel, Receiver};
 use futures::{SinkExt, StreamExt};
-use notify::event::ModifyKind;
+use notify::event::{CreateKind, ModifyKind, RemoveKind};
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::io::BufRead;
 use std::os::unix::fs::FileExt;
@@ -27,7 +27,9 @@ pub async fn async_watch<P: AsRef<Path>>(
     message_sender: tokio::sync::mpsc::Sender<String>,
 ) -> notify::Result<()> {
     let (mut watcher, mut rx) = async_watcher()?;
-    watcher.watch(path.as_ref(), RecursiveMode::Recursive)?;
+    while let Err(_) = watcher.watch(path.as_ref(), RecursiveMode::Recursive) {
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+    }
     while let Some(Ok(res)) = rx.next().await {
         if let EventKind::Modify(ModifyKind::Data(_)) = res.kind {
             let paths = res.paths;
@@ -41,12 +43,17 @@ pub async fn async_watch<P: AsRef<Path>>(
 }
 
 async fn read_file_offset_content(path: String, message_sender: tokio::sync::mpsc::Sender<String>) {
-    let file = std::fs::OpenOptions::new().read(true).open(&path).unwrap();
+    let file = match std::fs::OpenOptions::new().read(true).open(&path) {
+        Ok(file) => file,
+        Err(_) => {
+            return;
+        }
+    };
     let file_metadata = file.metadata().unwrap();
     let file_size = file_metadata.len() as usize;
     let offset = get_offset_by_key(&path);
     if offset >= file_size {
-        set_offset(&path, file_size, false);
+        set_offset(&path, 0, false);
         return;
     }
     let read_size = file_size as usize - offset as usize;
