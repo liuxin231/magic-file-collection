@@ -4,7 +4,10 @@ use futures::{SinkExt, StreamExt};
 use notify::event::ModifyKind;
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::io::BufRead;
+#[cfg(unix)]
 use std::os::unix::fs::FileExt;
+#[cfg(windows)]
+use std::os::windows::fs::FileExt;
 use std::path::Path;
 
 pub mod offset;
@@ -58,6 +61,9 @@ async fn read_file_offset_content(path: String, message_sender: tokio::sync::mps
     }
     let read_size = file_size as usize - offset as usize;
     let mut read_buf = vec![0u8; read_size];
+    #[cfg(windows)]
+    file.seek_read(&mut read_buf, offset as u64).unwrap();
+    #[cfg(unix)]
     file.read_at(&mut read_buf, offset as u64).unwrap();
     set_offset(&path, file_size, true);
     let mut cursor = std::io::Cursor::new(&read_buf).lines();
