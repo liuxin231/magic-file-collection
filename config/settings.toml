@@ -2,6 +2,7 @@
 directory = "./log"
 file_name_prefix = "service.log"
 [notify]
-watching_path = "./data/test"
+watching_path = ["./data/test", "./data/jrasp"]
+file_name_regex = ["jrasp-module.log"]
 flush_timing = 3
 offset_file = "./data/offset"
