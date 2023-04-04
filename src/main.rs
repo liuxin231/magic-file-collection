@@ -28,17 +28,20 @@ async fn main() {
         .with(fmt::Layer::new().with_writer(non_blocking));
     tracing::subscriber::set_global_default(subscriber).expect("Unable to set a global subscriber");
 
-    let path = &settings.notify.watching_path;
-    if path.is_empty() {
+    let paths = &settings.notify.watching_path;
+    if paths.is_empty() {
         tracing::error!("watching path list is empty.");
         return;
     }
-    tracing::info!("watching path list: {:?}", &path);
+    tracing::info!("watching path list: {:?}", &paths);
+
     tokio::spawn(flush(settings.clone()));
     let (tx, mut rx) = tokio::sync::mpsc::channel(10);
-    let path = path.to_string();
+    let paths = paths.clone();
+    let file_name_regex = &settings.notify.file_name_regex;
+    let file_name_regex = file_name_regex.clone();
     tokio::spawn(async move {
-        if let Err(error) = async_watch(path, tx).await {
+        if let Err(error) = async_watch(paths, file_name_regex, tx).await {
             tracing::error!("watching path error: {}", error.to_string());
         }
     });

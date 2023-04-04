@@ -26,19 +26,38 @@ fn async_watcher() -> notify::Result<(RecommendedWatcher, Receiver<notify::Resul
 }
 
 pub async fn async_watch<P: AsRef<Path>>(
-    path: P,
+    paths: Vec<P>,
+    file_name_regex: Vec<String>,
     message_sender: tokio::sync::mpsc::Sender<String>,
 ) -> notify::Result<()> {
     let (mut watcher, mut rx) = async_watcher()?;
-    while let Err(_) = watcher.watch(path.as_ref(), RecursiveMode::Recursive) {
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+    for path in paths {
+        while let Err(error) = watcher.watch(path.as_ref(), RecursiveMode::Recursive) {
+            tracing::info!(
+                "watch file: {:?}, error: {}",
+                path.as_ref(),
+                error.to_string()
+            );
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        }
     }
     while let Some(Ok(res)) = rx.next().await {
         if let EventKind::Modify(ModifyKind::Data(_)) = res.kind {
             let paths = res.paths;
             for path in paths {
-                let path = path.to_str().unwrap().to_string();
-                read_file_offset_content(path, message_sender.clone()).await;
+                if path.is_dir() {
+                    continue;
+                }
+                let file_name = path.file_name().unwrap().to_str().unwrap();
+                let is_match_file_name = file_name_regex
+                    .iter()
+                    .map(|item| regex::Regex::new(&item).unwrap().is_match(&file_name))
+                    .collect::<Vec<bool>>()
+                    .contains(&true);
+                if is_match_file_name {
+                    let path = path.to_str().unwrap().to_string();
+                    read_file_offset_content(path, message_sender.clone()).await;
+                }
             }
         }
     }
